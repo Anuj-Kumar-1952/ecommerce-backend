@@ -1,12 +1,12 @@
 package com.anuj.ecommerce_backend.exception;
 
-public class UnAuthorizedException extends RuntimeException {
+public class UnauthorizedException extends RuntimeException {
 
-    public UnAuthorizedException() {
+    public UnauthorizedException() {
         super();
     }
 
-    public UnAuthorizedException(String message) {
+    public UnauthorizedException(String message) {
         super(message);
     }
 

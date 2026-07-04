@@ -19,5 +19,6 @@ public class ApiResponse<T> {
 
     private T data;
 
-    private LocalDateTime timestamp;
+    @Builder.Default
+    private LocalDateTime timestamp = LocalDateTime.now();
 }
