@@ -3,8 +3,10 @@ package com.anuj.ecommerce_backend.service.impl;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.anuj.ecommerce_backend.dto.request.LoginRequest;
 import com.anuj.ecommerce_backend.dto.request.RegisterRequest;
@@ -17,7 +19,7 @@ import com.anuj.ecommerce_backend.repository.UserRepository;
 import com.anuj.ecommerce_backend.security.service.CustomUserDetails;
 import com.anuj.ecommerce_backend.security.service.JwtService;
 import com.anuj.ecommerce_backend.service.AuthenticationService;
-import org.springframework.transaction.annotation.Transactional;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -62,13 +64,13 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         public AuthResponse login(LoginRequest request) {
                 log.info("Login attempt for email: {}", request.getEmail());
                 try {
-                        authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(request.getEmail(),
+                        Authentication authentication = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(request.getEmail(),
                                         request.getPassword()));
 
-                        User user = userRepository.findByEmail(request.getEmail())
-                                        .orElseThrow(() -> new IllegalStateException("Authenticated user not found"));
+                        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
 
-                        String accessToken = jwtService.generateToken(new CustomUserDetails(user));
+                        User user = userDetails.getUser();
+                        String accessToken = jwtService.generateToken(userDetails);
 
                         log.info("User login successful: {}", request.getEmail());
                         return AuthResponse.builder()
@@ -78,7 +80,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                                         .role(user.getRole().name())
                                         .build();
                 } catch (BadCredentialsException ex) {
-                        log.warn("Authentication failed for email: {}", request.getEmail());
+                        // log.warn("Authentication failed for email: {}", request.getEmail());
                         throw new UnauthorizedException("Invalid email or password");
                 }
         }

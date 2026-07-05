@@ -9,8 +9,10 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 import com.anuj.ecommerce_backend.entity.User;
 
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
+@Getter
 @RequiredArgsConstructor
 public class CustomUserDetails implements UserDetails {
 
