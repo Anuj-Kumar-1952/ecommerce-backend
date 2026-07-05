@@ -1,5 +1,7 @@
 package com.anuj.ecommerce_backend.entity;
 
+import com.anuj.ecommerce_backend.enums.Role;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

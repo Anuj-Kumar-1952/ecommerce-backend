@@ -1,4 +1,4 @@
-package com.anuj.ecommerce_backend.entity;
+package com.anuj.ecommerce_backend.enums;
 
 /**
  * Role

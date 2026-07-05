@@ -11,6 +11,7 @@ import com.anuj.ecommerce_backend.dto.response.ApiResponse;
 import com.anuj.ecommerce_backend.dto.response.AuthResponse;
 import com.anuj.ecommerce_backend.service.AuthenticationService;
 
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
@@ -18,9 +19,9 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
 public class AuthenticationController {
-
         private final AuthenticationService authenticationService;
 
+        @Operation(summary = "Register a new user")
         @PostMapping("/register")
         public ApiResponse<String> register(@Valid @RequestBody RegisterRequest request) {
 
@@ -33,6 +34,7 @@ public class AuthenticationController {
                                 .build();
         }
 
+        @Operation(summary = "Authenticate user and generate JWT")
         @PostMapping("/login")
         public ApiResponse<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
 

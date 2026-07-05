@@ -1,6 +1,7 @@
 package com.anuj.ecommerce_backend.service.impl;
 
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -8,14 +9,15 @@ import org.springframework.stereotype.Service;
 import com.anuj.ecommerce_backend.dto.request.LoginRequest;
 import com.anuj.ecommerce_backend.dto.request.RegisterRequest;
 import com.anuj.ecommerce_backend.dto.response.AuthResponse;
-import com.anuj.ecommerce_backend.entity.Role;
 import com.anuj.ecommerce_backend.entity.User;
+import com.anuj.ecommerce_backend.enums.Role;
 import com.anuj.ecommerce_backend.exception.BadRequestException;
+import com.anuj.ecommerce_backend.exception.UnauthorizedException;
 import com.anuj.ecommerce_backend.repository.UserRepository;
 import com.anuj.ecommerce_backend.security.service.CustomUserDetails;
 import com.anuj.ecommerce_backend.security.service.JwtService;
 import com.anuj.ecommerce_backend.service.AuthenticationService;
-
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -32,14 +34,8 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
         private final JwtService jwtService;
 
-        @Override
-        public void register(RegisterRequest request) {
-
-                if (userRepository.existsByEmail(request.getEmail())) {
-                        throw new BadRequestException("Email already exists");
-                }
-
-                User user = User.builder()
+        private User createCustomer(RegisterRequest request) {
+                return User.builder()
                                 .firstName(request.getFirstName())
                                 .lastName(request.getLastName())
                                 .email(request.getEmail())
@@ -47,29 +43,43 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                                 .phoneNumber(request.getPhoneNumber())
                                 .role(Role.ROLE_CUSTOMER)
                                 .build();
+        }
 
-                userRepository.save(user);
+        @Transactional
+        @Override
+        public void register(RegisterRequest request) {
+                log.info("Registration request for email: {}", request.getEmail());
+                if (userRepository.existsByEmail(request.getEmail())) {
+                        throw new BadRequestException("Email already exists");
+                }
 
-                log.info("User registered successfully: {}", user.getEmail());
+                User savedUser = userRepository.save(createCustomer(request));
+
+                log.info("User registered successfully: {}", savedUser.getEmail());
         }
 
         @Override
         public AuthResponse login(LoginRequest request) {
+                log.info("Login attempt for email: {}", request.getEmail());
+                try {
+                        authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(request.getEmail(),
+                                        request.getPassword()));
 
-                authenticationManager.authenticate(
-                                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
+                        User user = userRepository.findByEmail(request.getEmail())
+                                        .orElseThrow(() -> new IllegalStateException("Authenticated user not found"));
 
-                User user = userRepository.findByEmail(request.getEmail()).orElseThrow();
+                        String accessToken = jwtService.generateToken(new CustomUserDetails(user));
 
-                String jwt = jwtService.generateToken(new CustomUserDetails(user));
-
-                log.info("User login successful: {}", user.getEmail());
-
-                return AuthResponse.builder()
-                                .token(jwt)
-                                .type("Bearer")
-                                .email(user.getEmail())
-                                .role(user.getRole().name())
-                                .build();
+                        log.info("User login successful: {}", request.getEmail());
+                        return AuthResponse.builder()
+                                        .token(accessToken)
+                                        .type("Bearer")
+                                        .email(user.getEmail())
+                                        .role(user.getRole().name())
+                                        .build();
+                } catch (BadCredentialsException ex) {
+                        log.warn("Authentication failed for email: {}", request.getEmail());
+                        throw new UnauthorizedException("Invalid email or password");
+                }
         }
 }
