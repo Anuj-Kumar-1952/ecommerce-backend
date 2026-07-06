@@ -1,5 +1,11 @@
 package com.anuj.ecommerce_backend.service.impl;
 
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.anuj.ecommerce_backend.dto.request.BrandRequest;
 import com.anuj.ecommerce_backend.dto.response.BrandResponse;
 import com.anuj.ecommerce_backend.entity.Brand;
@@ -11,11 +17,6 @@ import com.anuj.ecommerce_backend.service.BrandService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 @Slf4j
 @Service
@@ -32,9 +33,28 @@ public class BrandServiceImpl implements BrandService {
 
                 log.info("Creating brand {}", request.getName());
 
-                if (brandRepository.existsByName(request.getName())) {
+                if (brandRepository.existsByNameAndActiveTrue(request.getName())) {
 
                         throw new BadRequestException("Brand already exists");
+                }
+
+                Optional<Brand> deletedBrand = brandRepository.findByNameAndActiveFalse(request.getName());
+
+                if (deletedBrand.isPresent()) {
+
+                        Brand brand = deletedBrand.get();
+
+                        brand.setActive(true);
+
+                        brand.setDescription(
+                                        request.getDescription());
+
+                        brand.setLogoUrl(
+                                        request.getLogoUrl());
+
+                        return brandMapper.toResponse(
+                                        brandRepository.save(
+                                                        brand));
                 }
 
                 Brand brand = Brand.builder()

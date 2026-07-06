@@ -40,11 +40,11 @@ public class Product extends BaseEntity {
         private String description;
 
         @ManyToOne(fetch = FetchType.LAZY)
-        @JoinColumn(name = "category_id")
+        @JoinColumn(name = "category_id",nullable = false)
         private Category category;
 
         @ManyToOne(fetch = FetchType.LAZY)
-        @JoinColumn(name = "brand_id")
+        @JoinColumn(name = "brand_id",nullable = false)
         private Brand brand;
 
         @Builder.Default
@@ -55,7 +55,7 @@ public class Product extends BaseEntity {
         @Builder.Default
         @Column(nullable = false)
         private Boolean active = true;
-        
+
         @Builder.Default
         @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
         private List<ProductVariant> variants = new ArrayList<>();

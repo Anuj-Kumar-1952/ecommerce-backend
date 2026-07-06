@@ -8,10 +8,12 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.anuj.ecommerce_backend.dto.request.ProductRequest;
 import com.anuj.ecommerce_backend.dto.response.ApiResponse;
+import com.anuj.ecommerce_backend.dto.response.ProductPageResponse;
 import com.anuj.ecommerce_backend.dto.response.ProductResponse;
 import com.anuj.ecommerce_backend.service.ProductService;
 
@@ -68,6 +70,27 @@ public class ProductController {
         return ApiResponse.<Void>builder()
                 .success(true)
                 .message("Product deleted successfully")
+                .build();
+    }
+
+    @Operation(summary = "Search products")
+    @GetMapping("/search")
+    public ApiResponse<ProductPageResponse> search(
+
+            @RequestParam(required = false) String keyword,
+
+            @RequestParam(defaultValue = "0") Integer page,
+
+            @RequestParam(defaultValue = "10") Integer size,
+
+            @RequestParam(defaultValue = "name") String sortBy,
+
+            @RequestParam(defaultValue = "asc") String direction) {
+
+        return ApiResponse.<ProductPageResponse>builder()
+                .success(true)
+                .message("Products fetched successfully")
+                .data(productService.search(keyword, page, size, sortBy, direction))
                 .build();
     }
 }

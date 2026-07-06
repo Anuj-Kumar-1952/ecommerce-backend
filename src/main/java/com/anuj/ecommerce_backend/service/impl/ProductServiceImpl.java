@@ -2,12 +2,17 @@ package com.anuj.ecommerce_backend.service.impl;
 
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.anuj.ecommerce_backend.dto.request.ProductImageRequest;
 import com.anuj.ecommerce_backend.dto.request.ProductRequest;
 import com.anuj.ecommerce_backend.dto.request.ProductVariantRequest;
+import com.anuj.ecommerce_backend.dto.response.ProductPageResponse;
 import com.anuj.ecommerce_backend.dto.response.ProductResponse;
 import com.anuj.ecommerce_backend.entity.Brand;
 import com.anuj.ecommerce_backend.entity.Category;
@@ -21,9 +26,11 @@ import com.anuj.ecommerce_backend.mapper.ProductMapper;
 import com.anuj.ecommerce_backend.repository.BrandRepository;
 import com.anuj.ecommerce_backend.repository.CategoryRepository;
 import com.anuj.ecommerce_backend.repository.ProductRepository;
+import com.anuj.ecommerce_backend.repository.ProductVariantRepository;
 import com.anuj.ecommerce_backend.service.ProductService;
 import com.anuj.ecommerce_backend.util.SkuGenerator;
 import com.anuj.ecommerce_backend.util.SlugGenerator;
+import com.anuj.ecommerce_backend.validator.ProductValidator;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,6 +42,8 @@ public class ProductServiceImpl implements ProductService {
 
     private final ProductRepository productRepository;
 
+    private final ProductVariantRepository productVariantRepository;
+
     private final CategoryRepository categoryRepository;
 
     private final BrandRepository brandRepository;
@@ -45,35 +54,98 @@ public class ProductServiceImpl implements ProductService {
 
     private final SkuGenerator skuGenerator;
 
-    @Transactional
-    @Override
-    public ProductResponse create(ProductRequest request) {
+    private final ProductValidator productValidator;
 
-        log.info("Creating product {}", request.getName());
+    private Category getCategory(Long categoryId) {
 
-        // Product validation
-        if (productRepository.existsByName(request.getName())) {
-
-            throw new BadRequestException("Product already exists");
-        }
-
-        // Category validation
-        Category category = categoryRepository.findByIdAndActiveTrue(request.getCategoryId())
+        return categoryRepository.findByIdAndActiveTrue(categoryId)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
+    }
 
-        // Brand validation
-        Brand brand = brandRepository.findByIdAndActiveTrue(request.getBrandId())
+    private Brand getBrand(Long brandId) {
+
+        return brandRepository.findByIdAndActiveTrue(brandId)
                 .orElseThrow(() -> new ResourceNotFoundException("Brand not found"));
+    }
 
-        // Generate slug
-        String slug = slugGenerator.generate(request.getName());
+    private String generateSlug(String productName) {
+
+        String slug = slugGenerator.generate(productName);
 
         if (productRepository.existsBySlug(slug)) {
 
             throw new BadRequestException("Slug already exists");
         }
 
-        // Create product
+        return slug;
+    }
+
+    private void createVariants(Product product, Brand brand, List<ProductVariantRequest> requests) {
+
+        for (ProductVariantRequest request : requests) {
+
+            productValidator.validateVariant(request);
+
+            String sku = generateSku(brand.getName(), product.getName(), request);
+
+            ProductVariant variant = ProductVariant.builder()
+                    .sku(sku)
+                    .price(request.getPrice())
+                    .discountPrice(request.getDiscountPrice())
+                    .stock(request.getStock())
+                    .color(request.getColor())
+                    .storage(request.getStorage())
+                    .build();
+
+            createImages(variant, request.getImages());
+
+            product.addVariant(variant);
+        }
+    }
+
+    private String generateSku(String brand, String product, ProductVariantRequest request) {
+
+        String sku = skuGenerator.generate(
+                brand,
+                product,
+                request.getStorage(),
+                request.getColor());
+
+        if (productVariantRepository.existsBySku(sku)) {
+
+            throw new BadRequestException("SKU already exists");
+        }
+
+        return sku;
+    }
+
+    private void createImages(ProductVariant variant, List<ProductImageRequest> requests) {
+
+        for (ProductImageRequest request : requests) {
+
+            ProductImage image = ProductImage.builder()
+                    .imageUrl(request.getImageUrl())
+                    .primaryImage(request.getPrimaryImage())
+                    .build();
+
+            variant.addImage(image);
+        }
+    }
+
+    @Transactional
+    @Override
+    public ProductResponse create(ProductRequest request) {
+
+        log.info("Creating product {}", request.getName());
+
+        productValidator.validateProduct(request);
+
+        Category category = getCategory(request.getCategoryId());
+
+        Brand brand = getBrand(request.getBrandId());
+
+        String slug = generateSlug(request.getName());
+
         Product product = Product.builder()
                 .name(request.getName())
                 .description(request.getDescription())
@@ -83,55 +155,7 @@ public class ProductServiceImpl implements ProductService {
                 .status(ProductStatus.ACTIVE)
                 .build();
 
-        // Create variants
-        for (ProductVariantRequest variantRequest : request.getVariants()) {
-
-            // Validate primary image
-            int primaryCount = 0;
-
-            for (ProductImageRequest imageRequest : variantRequest.getImages()) {
-
-                if (Boolean.TRUE.equals(imageRequest.getPrimaryImage())) {
-                    primaryCount++;
-                }
-            }
-
-            if (primaryCount != 1) {
-
-                throw new BadRequestException("Each variant must have exactly one primary image");
-            }
-
-            // Generate SKU
-            String sku = skuGenerator.generate(
-                    brand.getName(),
-                    product.getName(),
-                    variantRequest.getStorage(),
-                    variantRequest.getColor());
-
-            ProductVariant variant = ProductVariant.builder()
-                    .sku(sku)
-                    .price(variantRequest.getPrice())
-                    .discountPrice(variantRequest.getDiscountPrice())
-                    .stock(variantRequest.getStock())
-                    .color(variantRequest.getColor())
-                    .storage(variantRequest.getStorage())
-                    .product(product)
-                    .build();
-
-            // images
-            for (ProductImageRequest imageRequest : variantRequest.getImages()) {
-
-                ProductImage image = ProductImage.builder()
-                        .imageUrl(imageRequest.getImageUrl())
-                        .primaryImage(imageRequest.getPrimaryImage())
-                        .variant(variant)
-                        .build();
-
-                variant.getImages().add(image);
-            }
-
-            product.getVariants().add(variant);
-        }
+        createVariants(product, brand, request.getVariants());
 
         Product savedProduct = productRepository.save(product);
 
@@ -168,8 +192,7 @@ public class ProductServiceImpl implements ProductService {
     @Override
     public void delete(Long id) {
 
-        Product product = productRepository
-                .findByIdAndActiveTrue(id)
+        Product product = productRepository.findByIdAndActiveTrue(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
 
         product.setActive(false);
@@ -177,5 +200,40 @@ public class ProductServiceImpl implements ProductService {
         productRepository.save(product);
 
         log.info("Product deleted {}", id);
+    }
+
+    @Override
+    public ProductPageResponse search(String keyword, Integer page, Integer size, String sortBy, String direction) {
+
+        log.info("Searching products: keyword={}, page={}, size={}, sortBy={}, direction={}", keyword, page, size,
+                sortBy, direction);
+
+        Sort sort = direction.equalsIgnoreCase("desc") ? Sort.by(sortBy).descending() : Sort.by(sortBy).ascending();
+
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+        Page<Product> productPage;
+
+        if (keyword != null && !keyword.isBlank()) {
+
+            productPage = productRepository.findByNameContainingIgnoreCaseAndActiveTrue(keyword, pageable);
+
+        } else {
+
+            productPage = productRepository.findByActiveTrue(pageable);
+        }
+
+        return ProductPageResponse
+                .builder()
+                .content(productPage.getContent()
+                        .stream()
+                        .map(productMapper::toResponse)
+                        .toList())
+                .page(productPage.getNumber())
+                .size(productPage.getSize())
+                .totalElements(productPage.getTotalElements())
+                .totalPages(productPage.getTotalPages())
+                .last(productPage.isLast())
+                .build();
     }
 }
