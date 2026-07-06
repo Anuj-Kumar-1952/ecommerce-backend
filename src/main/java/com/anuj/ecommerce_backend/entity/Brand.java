@@ -1,11 +1,7 @@
 package com.anuj.ecommerce_backend.entity;
 
-import com.anuj.ecommerce_backend.enums.Role;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -14,36 +10,25 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "users")
+@Table(name = "brands")
 @Getter
 @Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class User extends BaseEntity {
-
-    @Column(nullable = false)
-    private String firstName;
-
-    @Column(nullable = false)
-    private String lastName;
+public class Brand extends BaseEntity {
 
     @Column(nullable = false, unique = true, length = 100)
-    private String email;
+    private String name;
+
+    @Column(length = 500)
+    private String description;
+
+    private String logoUrl;
 
     @Column(nullable = false)
-    private String password;
-
-    @Column(length = 15)
-    private String phoneNumber;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private Role role;
-
     @Builder.Default
-    @Column(nullable = false)
-    private Boolean enabled = true;
+    private Boolean active = true;
 
     @Override
     public boolean equals(Object o) {
@@ -51,10 +36,10 @@ public class User extends BaseEntity {
         if (this == o)
             return true;
 
-        if (!(o instanceof User user))
+        if (!(o instanceof Brand brand))
             return false;
 
-        return getId() != null && getId().equals(user.getId());
+        return getId() != null && getId().equals(brand.getId());
     }
 
     @Override
