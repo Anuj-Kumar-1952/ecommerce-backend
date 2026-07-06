@@ -53,6 +53,10 @@ public class Product extends BaseEntity {
         private ProductStatus status = ProductStatus.ACTIVE;
 
         @Builder.Default
+        @Column(nullable = false)
+        private Boolean active = true;
+        
+        @Builder.Default
         @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
         private List<ProductVariant> variants = new ArrayList<>();
 
